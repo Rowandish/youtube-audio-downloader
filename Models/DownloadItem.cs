@@ -6,7 +6,7 @@ public sealed class DownloadItem : ObservableObject
 {
     private double _progress;
     private DownloadState _state = DownloadState.Pending;
-    private string _statusMessage = "In attesa";
+    private string _statusMessage = "Pending";
     private string _errorMessage = string.Empty;
 
     public DownloadItem(string url)

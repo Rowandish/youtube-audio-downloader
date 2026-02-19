@@ -31,13 +31,13 @@ public sealed class YtDlpDownloadService
         {
             if (!process.Start())
             {
-                throw new InvalidOperationException("Impossibile avviare yt-dlp.");
+                throw new InvalidOperationException("Unable to start yt-dlp.");
             }
         }
         catch (Win32Exception ex)
         {
             throw new InvalidOperationException(
-                "yt-dlp non trovato. Installa yt-dlp e ffmpeg e verifica che siano nel PATH.",
+                "yt-dlp not found. Install yt-dlp and ffmpeg and make sure they are in PATH.",
                 ex);
         }
 
@@ -58,7 +58,7 @@ public sealed class YtDlpDownloadService
             var latestError = errors.LastOrDefault();
             throw new InvalidOperationException(
                 string.IsNullOrWhiteSpace(latestError)
-                    ? $"yt-dlp ha terminato con codice {process.ExitCode}."
+                    ? $"yt-dlp exited with code {process.ExitCode}."
                     : latestError);
         }
 
@@ -170,7 +170,7 @@ public sealed class YtDlpDownloadService
         }
         catch
         {
-            // Ignora errori in fase di cleanup durante la cancellazione.
+            // Ignore cleanup errors during cancellation.
         }
     }
 }

@@ -28,16 +28,16 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     private int _totalCount;
     private double _overallProgress;
     private string _elapsedTime = "00:00:00";
-    private string _statusMessage = "Pronto";
+    private string _statusMessage = "Ready";
     private bool _isDownloading;
 
     public MainWindowViewModel()
     {
         QualityOptions =
         [
-            new AudioQualityOption(AudioQuality.High, "Alta"),
-            new AudioQualityOption(AudioQuality.Medium, "Media"),
-            new AudioQualityOption(AudioQuality.Low, "Bassa")
+            new AudioQualityOption(AudioQuality.High, "High"),
+            new AudioQualityOption(AudioQuality.Medium, "Medium"),
+            new AudioQualityOption(AudioQuality.Low, "Low")
         ];
 
         _selectedQuality = QualityOptions[2];
@@ -140,7 +140,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         }
     }
 
-    public string ProcessedSummary => $"{ProcessedCount}/{TotalCount} elaborati";
+    public string ProcessedSummary => $"{ProcessedCount}/{TotalCount} processed";
 
     public double OverallProgress
     {
@@ -204,7 +204,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         {
             if (!IsValidYoutubeUrl(url))
             {
-                Errors.Add($"URL non valido: {url}");
+                Errors.Add($"Invalid URL: {url}");
                 continue;
             }
 
@@ -218,7 +218,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             if (IsDownloading)
             {
                 newItem.State = DownloadState.Queued;
-                newItem.StatusMessage = "In coda";
+                newItem.StatusMessage = "Queued";
                 _activeBatch.Add(newItem);
                 TotalCount++;
                 UpdateOverallProgress();
@@ -230,12 +230,12 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
 
         if (added > 0)
         {
-            StatusMessage = $"Aggiunti {added} URL.";
+            StatusMessage = $"Added {added} URL(s).";
             UrlInput = string.Empty;
         }
         else
         {
-            StatusMessage = "Nessun URL aggiunto.";
+            StatusMessage = "No URLs added.";
         }
     }
 
@@ -261,14 +261,14 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
 
         Items.Remove(SelectedItem);
         SelectedItem = null;
-        StatusMessage = "Elemento rimosso.";
+        StatusMessage = "Item removed.";
     }
 
     private void BrowseOutputDirectory()
     {
         var dialog = new OpenFolderDialog
         {
-            Title = "Seleziona cartella di destinazione",
+            Title = "Select output folder",
             InitialDirectory = Directory.Exists(OutputDirectory)
                 ? OutputDirectory
                 : Environment.GetFolderPath(Environment.SpecialFolder.MyMusic)
@@ -284,7 +284,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     {
         if (string.IsNullOrWhiteSpace(OutputDirectory))
         {
-            StatusMessage = "Specifica una cartella di destinazione.";
+            StatusMessage = "Specify an output folder.";
             return;
         }
 
@@ -294,8 +294,8 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex)
         {
-            StatusMessage = "Cartella di output non valida.";
-            Errors.Add($"Impossibile usare la cartella di output: {ex.Message}");
+            StatusMessage = "Invalid output folder.";
+            Errors.Add($"Unable to use output folder: {ex.Message}");
             return;
         }
 
@@ -305,7 +305,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
 
         if (batch.Count == 0)
         {
-            StatusMessage = "Nessun elemento disponibile per il download.";
+            StatusMessage = "No items available for download.";
             return;
         }
 
@@ -316,7 +316,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         {
             item.Progress = 0d;
             item.State = DownloadState.Queued;
-            item.StatusMessage = "In coda";
+            item.StatusMessage = "Queued";
             item.ErrorMessage = string.Empty;
             _activeBatch.Add(item);
         }
@@ -324,7 +324,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         ProcessedCount = 0;
         TotalCount = _activeBatch.Count;
         OverallProgress = 0d;
-        StatusMessage = "Download avviato.";
+        StatusMessage = "Downloads started.";
 
         _downloadCts?.Dispose();
         _downloadCts = new CancellationTokenSource();
@@ -368,10 +368,10 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             }
 
             StatusMessage = cancellationToken.IsCancellationRequested
-                ? "Download interrotti."
+                ? "Downloads stopped."
                 : Errors.Count > 0
-                    ? "Completato con errori."
-                    : "Download completati.";
+                    ? "Completed with errors."
+                    : "Downloads completed.";
         }
         finally
         {
@@ -389,7 +389,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             cancellationToken.ThrowIfCancellationRequested();
 
             item.State = DownloadState.Downloading;
-            item.StatusMessage = "Download in corso";
+            item.StatusMessage = "Downloading";
 
             var progress = new Progress<double>(value =>
             {
@@ -412,17 +412,17 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
 
             item.Progress = 100d;
             item.State = DownloadState.Completed;
-            item.StatusMessage = "Completato";
+            item.StatusMessage = "Completed";
         }
         catch (OperationCanceledException)
         {
             item.State = DownloadState.Stopped;
-            item.StatusMessage = "Interrotto";
+            item.StatusMessage = "Stopped";
         }
         catch (Exception ex)
         {
             item.State = DownloadState.Failed;
-            item.StatusMessage = "Errore";
+            item.StatusMessage = "Error";
             item.ErrorMessage = ex.Message;
             Errors.Add($"{DateTime.Now:HH:mm:ss} | {item.Url} | {ex.Message}");
         }
@@ -438,7 +438,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         foreach (var item in _activeBatch.Where(item => item.State == DownloadState.Queued))
         {
             item.State = DownloadState.Stopped;
-            item.StatusMessage = "Interrotto";
+            item.StatusMessage = "Stopped";
             item.Progress = 0d;
             ProcessedCount++;
         }
@@ -453,7 +453,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             return;
         }
 
-        StatusMessage = "Interruzione in corso...";
+        StatusMessage = "Stopping downloads...";
         _downloadCts?.Cancel();
     }
 

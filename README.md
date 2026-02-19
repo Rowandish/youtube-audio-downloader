@@ -58,7 +58,7 @@ dotnet run
 ## ⚠️ Notes
 
 - This app currently validates YouTube domains (`youtube.com`, `youtu.be`).
-- UI status strings are currently in Italian; documentation is in English.
+- The UI and status strings are in English.
 - Use responsibly and respect content rights and platform terms.
 
 ## 📄 License

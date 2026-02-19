@@ -235,7 +235,7 @@
                 <TextBlock Margin="0,6,0,0"
                            Foreground="{StaticResource TextMutedBrush}"
                            FontSize="13"
-                           Text="Scarica audio MP3 da URL YouTube in modo asincrono, con progress dettagliato e controllo completo." />
+                           Text="Download MP3 audio from YouTube URLs asynchronously, with detailed progress and full control." />
             </StackPanel>
 
             <Border Grid.Column="1"
@@ -272,7 +272,7 @@
                            Grid.Column="0"
                            Margin="0,0,0,8"
                            Foreground="{StaticResource TextMutedBrush}"
-                           Text="URL video YouTube (puoi incollare più URL separati da spazio o a capo)" />
+                           Text="YouTube video URLs (paste multiple URLs separated by spaces or new lines)" />
 
                 <TextBox Grid.Row="1"
                          Grid.Column="0"
@@ -285,19 +285,19 @@
                         Margin="12,0,0,0"
                         Style="{StaticResource PrimaryButtonStyle}"
                         Command="{Binding AddUrlCommand}"
-                        Content="Aggiungi URL" />
+                        Content="Add URL" />
 
                 <TextBlock Grid.Row="2"
                            Grid.Column="0"
                            Margin="0,14,0,8"
                            Foreground="{StaticResource TextMutedBrush}"
-                           Text="Cartella output MP3" />
+                           Text="MP3 Output Folder" />
 
                 <TextBlock Grid.Row="2"
                            Grid.Column="2"
                            Margin="12,14,0,8"
                            Foreground="{StaticResource TextMutedBrush}"
-                           Text="Qualita" />
+                           Text="Quality" />
 
                 <TextBox Grid.Row="3"
                          Grid.Column="0"
@@ -310,7 +310,7 @@
                         Margin="12,0,0,0"
                         Style="{StaticResource SecondaryButtonStyle}"
                         Command="{Binding BrowseOutputDirectoryCommand}"
-                        Content="Sfoglia" />
+                        Content="Browse" />
 
                 <ComboBox Grid.Row="3"
                           Grid.Column="2"
@@ -326,7 +326,7 @@
                         Margin="12,0,0,0"
                         Style="{StaticResource SecondaryButtonStyle}"
                         Command="{Binding RemoveSelectedCommand}"
-                        Content="Rimuovi selezionato" />
+                        Content="Remove Selected" />
             </Grid>
         </Border>
 
@@ -341,7 +341,7 @@
 
                 <TextBlock Foreground="{StaticResource TextMutedBrush}"
                            FontSize="13"
-                           Text="Coda download" />
+                           Text="Download Queue" />
 
                 <ListBox Grid.Row="1"
                          Margin="0,12,0,0"
@@ -379,7 +379,7 @@
                                                 Orientation="Horizontal">
                                         <TextBlock Foreground="{StaticResource TextMutedBrush}"
                                                    FontSize="12"
-                                                   Text="Stato: " />
+                                                   Text="State: " />
                                         <TextBlock FontSize="12"
                                                    Text="{Binding State}">
                                             <TextBlock.Style>
@@ -441,7 +441,7 @@
                 <StackPanel Margin="0,0,24,0">
                     <TextBlock Foreground="{StaticResource TextMutedBrush}"
                                FontSize="13"
-                               Text="Progresso totale" />
+                               Text="Overall Progress" />
                     <ProgressBar Margin="0,8,0,0"
                                  Maximum="100"
                                  Height="14"
@@ -450,7 +450,7 @@
                                  Value="{Binding OverallProgress, Mode=OneWay}" />
                     <StackPanel Margin="0,8,0,0" Orientation="Horizontal">
                         <TextBlock Foreground="{StaticResource TextPrimaryBrush}" Text="{Binding ProcessedSummary}" />
-                        <TextBlock Margin="14,0,0,0" Foreground="{StaticResource TextMutedBrush}" Text="Tempo trascorso:" />
+                        <TextBlock Margin="14,0,0,0" Foreground="{StaticResource TextMutedBrush}" Text="Elapsed time:" />
                         <TextBlock Margin="6,0,0,0" Foreground="{StaticResource TextPrimaryBrush}" Text="{Binding ElapsedTime}" />
                     </StackPanel>
                 </StackPanel>
@@ -459,7 +459,7 @@
                     <Button Margin="0,0,12,0"
                             Style="{StaticResource PrimaryButtonStyle}"
                             Command="{Binding StartDownloadsCommand}"
-                            Content="Avvia download" />
+                            Content="Start Downloads" />
                     <Button Style="{StaticResource DangerButtonStyle}"
                             Command="{Binding StopDownloadsCommand}"
                             Content="Stop" />
@@ -484,11 +484,11 @@
 
                     <TextBlock Foreground="{StaticResource TextMutedBrush}"
                                FontSize="13"
-                               Text="Errori" />
+                               Text="Errors" />
                     <Button Grid.Column="1"
                             Style="{StaticResource SecondaryButtonStyle}"
                             Command="{Binding ClearErrorsCommand}"
-                            Content="Pulisci"
+                            Content="Clear"
                             Height="32"
                             MinWidth="80"
                             Padding="14,4" />
