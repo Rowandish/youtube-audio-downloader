@@ -19,14 +19,36 @@ public sealed class DownloadItem : ObservableObject
     public double Progress
     {
         get => _progress;
-        set => SetProperty(ref _progress, Math.Clamp(value, 0d, 100d));
+        set
+        {
+            if (SetProperty(ref _progress, Math.Clamp(value, 0d, 100d)))
+            {
+                OnPropertyChanged(nameof(ShowProgress));
+            }
+        }
     }
 
     public DownloadState State
     {
         get => _state;
-        set => SetProperty(ref _state, value);
+        set
+        {
+            if (SetProperty(ref _state, value))
+            {
+                OnPropertyChanged(nameof(ShowProgress));
+            }
+        }
     }
+
+    /// <summary>
+    /// True only while actively downloading and below 100%.
+    /// Hides the bar during the audio-extraction phase (yt-dlp has
+    /// already reported 100% download but ffmpeg is still running).
+    /// Also shows an empty bar for queued items.
+    /// </summary>
+    public bool ShowProgress =>
+        State == DownloadState.Queued ||
+        (State == DownloadState.Downloading && Progress < 100d);
 
     public string StatusMessage
     {

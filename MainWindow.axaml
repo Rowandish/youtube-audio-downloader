@@ -460,11 +460,12 @@
                                         <!-- Spacer -->
                                         <Grid Grid.Row="2" MinHeight="4" />
 
-                                        <!-- Thin gradient progress bar -->
+                                        <!-- Thin gradient progress bar (hidden during extraction / on completion) -->
                                         <ProgressBar Grid.Row="3"
                                                      Maximum="100"
                                                      Value="{Binding Progress}"
                                                      Theme="{StaticResource ThinGradientProgress}"
+                                                     IsVisible="{Binding ShowProgress}"
                                                      Margin="0,8,0,0" />
 
                                         <!-- Error message (hidden when empty via style selector) -->

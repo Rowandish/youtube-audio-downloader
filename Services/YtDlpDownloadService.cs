@@ -83,6 +83,7 @@ public sealed class YtDlpDownloadService
         processStartInfo.ArgumentList.Add("mp3");
         processStartInfo.ArgumentList.Add("--audio-quality");
         processStartInfo.ArgumentList.Add(MapQuality(quality));
+        processStartInfo.ArgumentList.Add("--embed-metadata");   // Embeds ID3 tags (title, artist) so players like Telegram show the correct track name
         processStartInfo.ArgumentList.Add("-o");
         processStartInfo.ArgumentList.Add(Path.Combine(outputDirectory, "%(title)s.%(ext)s"));
         processStartInfo.ArgumentList.Add(url);
