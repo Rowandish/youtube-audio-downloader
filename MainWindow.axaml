@@ -1,0 +1,633 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:converters="clr-namespace:YoutubeAudioDownloader.Converters"
+        x:Class="YoutubeAudioDownloader.MainWindow"
+        Title="AudioStream"
+        Width="1280"
+        Height="820"
+        MinWidth="960"
+        MinHeight="600"
+        Background="#0B0F14"
+        FontFamily="Segoe UI Variable Text, Segoe UI, sans-serif">
+
+    <Window.Resources>
+        <converters:DownloadStateToColorConverter x:Key="StateColorConverter" />
+
+        <!-- Ultra-thin gradient progress bar (3px, per-item) -->
+        <ControlTheme x:Key="ThinGradientProgress" TargetType="ProgressBar">
+            <Setter Property="Background" Value="#0CFFFFFF" />
+            <Setter Property="Height" Value="3" />
+            <Setter Property="Minimum" Value="0" />
+            <Setter Property="Maximum" Value="100" />
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Background="{TemplateBinding Background}"
+                            CornerRadius="1.5"
+                            ClipToBounds="True">
+                        <Border Name="PART_Indicator"
+                                HorizontalAlignment="Left"
+                                VerticalAlignment="Stretch">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0,0.5" EndPoint="1,0.5">
+                                    <GradientStop Color="#007BFF" Offset="0" />
+                                    <GradientStop Color="#22D3EE" Offset="1" />
+                                </LinearGradientBrush>
+                            </Border.Background>
+                        </Border>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </ControlTheme>
+
+        <!-- Overall progress bar (4px, footer) -->
+        <ControlTheme x:Key="OverallGradientProgress" TargetType="ProgressBar">
+            <Setter Property="Background" Value="#0CFFFFFF" />
+            <Setter Property="Height" Value="4" />
+            <Setter Property="Minimum" Value="0" />
+            <Setter Property="Maximum" Value="100" />
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Background="{TemplateBinding Background}"
+                            CornerRadius="2"
+                            ClipToBounds="True">
+                        <Border Name="PART_Indicator"
+                                HorizontalAlignment="Left"
+                                VerticalAlignment="Stretch">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0,0.5" EndPoint="1,0.5">
+                                    <GradientStop Color="#007BFF" Offset="0" />
+                                    <GradientStop Color="#22D3EE" Offset="1" />
+                                </LinearGradientBrush>
+                            </Border.Background>
+                        </Border>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </ControlTheme>
+    </Window.Resources>
+
+    <Window.Styles>
+
+        <!-- Primary button (electric blue) -->
+        <Style Selector="Button.primary">
+            <Setter Property="Background" Value="#007BFF" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FontWeight" Value="Medium" />
+            <Setter Property="FontSize" Value="13" />
+        </Style>
+        <Style Selector="Button.primary:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#0065D4" />
+        </Style>
+        <Style Selector="Button.primary:disabled">
+            <Setter Property="Opacity" Value="0.4" />
+        </Style>
+
+        <!-- Glass button (semi-transparent with border) -->
+        <Style Selector="Button.glass">
+            <Setter Property="Background" Value="#0CFFFFFF" />
+            <Setter Property="Foreground" Value="#CBD5E1" />
+            <Setter Property="BorderBrush" Value="#18FFFFFF" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FontSize" Value="13" />
+        </Style>
+        <Style Selector="Button.glass:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#1AFFFFFF" />
+        </Style>
+        <Style Selector="Button.glass:disabled">
+            <Setter Property="Opacity" Value="0.4" />
+        </Style>
+
+        <!-- Floating pill button -->
+        <Style Selector="Button.pill">
+            <Setter Property="Background" Value="#0CFFFFFF" />
+            <Setter Property="Foreground" Value="#E2E8F0" />
+            <Setter Property="BorderBrush" Value="#18FFFFFF" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="9999" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Padding" Value="22,14" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="FontSize" Value="13" />
+        </Style>
+        <Style Selector="Button.pill:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#1AFFFFFF" />
+        </Style>
+        <Style Selector="Button.pill:disabled">
+            <Setter Property="Opacity" Value="0.35" />
+        </Style>
+
+        <!-- Transparent icon button (settings, etc.) -->
+        <Style Selector="Button.icon">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="#64748B" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Padding" Value="8" />
+        </Style>
+        <Style Selector="Button.icon:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#0AFFFFFF" />
+        </Style>
+
+        <!-- TextBox inside glass containers: fully transparent, no border -->
+        <Style Selector="TextBox.seamless">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Foreground" Value="#F1F5F9" />
+            <Setter Property="CaretBrush" Value="#007BFF" />
+            <Setter Property="SelectionBrush" Value="#3B82F680" />
+        </Style>
+        <Style Selector="TextBox.seamless /template/ Border#PART_BorderElement">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+        <Style Selector="TextBox.seamless:focus /template/ Border#PART_BorderElement">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BoxShadow" Value="none" />
+        </Style>
+        <Style Selector="TextBox.seamless:pointerover /template/ Border#PART_BorderElement">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+        </Style>
+
+        <!-- Error message: hide when empty -->
+        <Style Selector="TextBlock.error-msg[Text='']">
+            <Setter Property="IsVisible" Value="False" />
+        </Style>
+
+        <!-- ListBoxItem: no highlight, no selection chrome -->
+        <Style Selector="ListBoxItem">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="0,0,0,10" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        </Style>
+        <Style Selector="ListBoxItem /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="ListBoxItem:selected:focus /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+
+    </Window.Styles>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         MAIN LAYOUT: Header | SettingsStrip | Content | Footer
+         ═══════════════════════════════════════════════════════════ -->
+    <Grid RowDefinitions="Auto,Auto,*,Auto">
+
+        <!-- ╔══════════════════════════════════════════════════════╗
+             ║  ROW 0 — HEADER (glass sticky)                      ║
+             ╚══════════════════════════════════════════════════════╝ -->
+        <Border Grid.Row="0"
+                Background="#0AFFFFFF"
+                BorderBrush="#14FFFFFF"
+                BorderThickness="0,0,0,1"
+                Padding="24,10">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+
+                <!-- App Logo + Title -->
+                <StackPanel Grid.Column="0"
+                            Orientation="Horizontal"
+                            VerticalAlignment="Center"
+                            Margin="0,0,28,0"
+                            Spacing="12">
+                    <Border Width="40" Height="40" CornerRadius="12">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                <GradientStop Color="#007BFF" Offset="0" />
+                                <GradientStop Color="#22D3EE" Offset="1" />
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <TextBlock Text="♪"
+                                   FontSize="22"
+                                   Foreground="White"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center" />
+                    </Border>
+                    <TextBlock Text="AudioStream"
+                               FontSize="19"
+                               FontWeight="SemiBold"
+                               Foreground="#F1F5F9"
+                               VerticalAlignment="Center" />
+                </StackPanel>
+
+                <!-- URL Input (glass container with integrated Add button) -->
+                <Border Grid.Column="1"
+                        Background="#08FFFFFF"
+                        BorderBrush="#18FFFFFF"
+                        BorderThickness="1"
+                        CornerRadius="12">
+                    <Grid ColumnDefinitions="Auto,*,Auto">
+                        <TextBlock Grid.Column="0"
+                                   Text="⬡"
+                                   FontSize="14"
+                                   Foreground="#334155"
+                                   VerticalAlignment="Center"
+                                   Margin="14,0,0,0" />
+                        <TextBox Grid.Column="1"
+                                 Classes="seamless"
+                                 Text="{Binding UrlInput, Mode=TwoWay}"
+                                 Watermark="Paste one or more YouTube URLs..."
+                                 Padding="12,10"
+                                 FontSize="13"
+                                 VerticalContentAlignment="Center" />
+                        <Button Grid.Column="2"
+                                Classes="primary"
+                                Margin="0,4,4,4"
+                                Height="34"
+                                Padding="14,0"
+                                FontSize="12"
+                                Command="{Binding AddUrlCommand}"
+                                Content="Add Track" />
+                    </Grid>
+                </Border>
+
+                <!-- Right: Settings + Status Badge -->
+                <StackPanel Grid.Column="2"
+                            Orientation="Horizontal"
+                            VerticalAlignment="Center"
+                            Margin="14,0,0,0"
+                            Spacing="6">
+                    <Button Classes="icon"
+                            Width="36"
+                            Height="36"
+                            ToolTip.Tip="Settings (coming soon)">
+                        <TextBlock Text="⚙" FontSize="16" />
+                    </Button>
+                    <Border Width="1" Height="20" Background="#18FFFFFF" />
+                    <Border Background="#0C1526"
+                            BorderBrush="#1A2A40"
+                            BorderThickness="1"
+                            CornerRadius="20"
+                            Padding="12,5">
+                        <TextBlock Text="{Binding StatusMessage}"
+                                   FontSize="11"
+                                   Foreground="#475569" />
+                    </Border>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ╔══════════════════════════════════════════════════════╗
+             ║  ROW 1 — SETTINGS STRIP (output dir + quality)      ║
+             ╚══════════════════════════════════════════════════════╝ -->
+        <Border Grid.Row="1"
+                Background="#050810"
+                BorderBrush="#14FFFFFF"
+                BorderThickness="0,0,0,1"
+                Padding="24,8">
+            <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto,Auto">
+
+                <TextBlock Grid.Column="0"
+                           Text="Output:"
+                           Foreground="#334155"
+                           FontSize="12"
+                           VerticalAlignment="Center"
+                           Margin="0,0,10,0" />
+
+                <Border Grid.Column="1"
+                        Background="#0AFFFFFF"
+                        BorderBrush="#14FFFFFF"
+                        BorderThickness="1"
+                        CornerRadius="8">
+                    <TextBox Classes="seamless"
+                             Text="{Binding OutputDirectory, Mode=TwoWay}"
+                             Padding="10,5"
+                             FontSize="12"
+                             Height="30"
+                             VerticalContentAlignment="Center" />
+                </Border>
+
+                <Button Grid.Column="2"
+                        Classes="glass"
+                        Margin="8,0,0,0"
+                        Padding="12,4"
+                        Height="30"
+                        FontSize="12"
+                        Command="{Binding BrowseOutputDirectoryCommand}"
+                        Content="Browse" />
+
+                <Border Grid.Column="3"
+                        Width="1"
+                        Background="#18FFFFFF"
+                        Margin="14,0" />
+
+                <TextBlock Grid.Column="4"
+                           Text="Quality:"
+                           Foreground="#334155"
+                           FontSize="12"
+                           VerticalAlignment="Center"
+                           Margin="0,0,8,0" />
+
+                <ComboBox Grid.Column="5"
+                          Background="#0AFFFFFF"
+                          BorderBrush="#14FFFFFF"
+                          BorderThickness="1"
+                          Foreground="#F1F5F9"
+                          FontSize="12"
+                          Height="30"
+                          MinWidth="110"
+                          ItemsSource="{Binding QualityOptions}"
+                          SelectedItem="{Binding SelectedQuality}"
+                          DisplayMemberBinding="{Binding Label}" />
+
+                <Button Grid.Column="6"
+                        Classes="glass"
+                        Margin="16,0,0,0"
+                        Padding="10,4"
+                        Height="30"
+                        FontSize="12"
+                        Command="{Binding ClearErrorsCommand}"
+                        ToolTip.Tip="Clear error log"
+                        Content="⚠ Clear Errors" />
+            </Grid>
+        </Border>
+
+        <!-- ╔══════════════════════════════════════════════════════╗
+             ║  ROW 2 — MAIN CONTENT                               ║
+             ╚══════════════════════════════════════════════════════╝ -->
+        <Grid Grid.Row="2" Margin="32,0" RowDefinitions="Auto,*">
+
+            <!-- Section Header -->
+            <Grid Grid.Row="0"
+                  Margin="0,20,0,16"
+                  ColumnDefinitions="*,Auto">
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="Active Downloads"
+                               FontSize="22"
+                               FontWeight="Bold"
+                               Foreground="#F1F5F9" />
+                    <TextBlock Text="Manage your current audio stream queue"
+                               FontSize="13"
+                               Foreground="#475569"
+                               Margin="0,4,0,0" />
+                </StackPanel>
+
+                <!-- Action buttons (top-right of section) -->
+                <StackPanel Grid.Column="1"
+                            Orientation="Horizontal"
+                            VerticalAlignment="Center"
+                            Spacing="10">
+                    <Button Classes="glass" Padding="14,8" Command="{Binding StartDownloadsCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="▶" Foreground="#007BFF" FontSize="14" VerticalAlignment="Center" />
+                            <TextBlock Text="Start All" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="glass" Padding="14,8" Command="{Binding StopDownloadsCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="■" Foreground="#64748B" FontSize="14" VerticalAlignment="Center" />
+                            <TextBlock Text="Stop All" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="glass"
+                            Padding="12,8"
+                            Command="{Binding RemoveSelectedCommand}"
+                            ToolTip.Tip="Remove selected item from queue">
+                        <TextBlock Text="× Remove" Foreground="#64748B" />
+                    </Button>
+                </StackPanel>
+            </Grid>
+
+            <!-- Cards List + Floating Buttons Overlay -->
+            <Grid Grid.Row="1">
+
+                <!-- Download Cards -->
+                <ListBox ItemsSource="{Binding Items}"
+                         SelectedItem="{Binding SelectedItem}"
+                         Background="Transparent"
+                         BorderThickness="0"
+                         Padding="0,0,0,96"
+                         ScrollViewer.VerticalScrollBarVisibility="Auto"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <!-- Card: glass morphism row -->
+                            <Border Padding="16"
+                                    Background="#0AFFFFFF"
+                                    BorderBrush="#14FFFFFF"
+                                    BorderThickness="1"
+                                    CornerRadius="12">
+                                <Grid ColumnDefinitions="56,*,Auto">
+
+                                    <!-- Icon Container -->
+                                    <Border Grid.Column="0"
+                                            Width="56"
+                                            Height="56"
+                                            CornerRadius="8"
+                                            Background="#111827"
+                                            VerticalAlignment="Center">
+                                        <TextBlock Text="♪"
+                                                   FontSize="24"
+                                                   Foreground="#334155"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center" />
+                                    </Border>
+
+                                    <!-- Content: title, status, progress bar, error -->
+                                    <Grid Grid.Column="1"
+                                          Margin="16,0,16,0"
+                                          RowDefinitions="Auto,Auto,*,Auto,Auto">
+
+                                        <TextBlock Grid.Row="0"
+                                                   Text="{Binding Url}"
+                                                   Foreground="#F1F5F9"
+                                                   FontWeight="Medium"
+                                                   FontSize="13"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   ToolTip.Tip="{Binding Url}" />
+
+                                        <TextBlock Grid.Row="1"
+                                                   Text="{Binding StatusMessage}"
+                                                   Foreground="#475569"
+                                                   FontSize="12"
+                                                   Margin="0,4,0,0" />
+
+                                        <!-- Spacer -->
+                                        <Grid Grid.Row="2" MinHeight="4" />
+
+                                        <!-- Thin gradient progress bar -->
+                                        <ProgressBar Grid.Row="3"
+                                                     Maximum="100"
+                                                     Value="{Binding Progress}"
+                                                     Theme="{StaticResource ThinGradientProgress}"
+                                                     Margin="0,8,0,0" />
+
+                                        <!-- Error message (hidden when empty via style selector) -->
+                                        <TextBlock Grid.Row="4"
+                                                   Classes="error-msg"
+                                                   Text="{Binding ErrorMessage}"
+                                                   Foreground="#FCA5A5"
+                                                   FontSize="11"
+                                                   TextWrapping="Wrap"
+                                                   Margin="0,4,0,0" />
+                                    </Grid>
+
+                                    <!-- Right: progress % + state label -->
+                                    <StackPanel Grid.Column="2"
+                                                VerticalAlignment="Center"
+                                                HorizontalAlignment="Right"
+                                                Spacing="4">
+                                        <TextBlock Text="{Binding Progress, StringFormat={}{0:F0}%}"
+                                                   Foreground="#007BFF"
+                                                   FontSize="15"
+                                                   FontWeight="SemiBold"
+                                                   HorizontalAlignment="Right" />
+                                        <TextBlock Text="{Binding State}"
+                                                   Foreground="{Binding State,
+                                                       Converter={StaticResource StateColorConverter}}"
+                                                   FontSize="11"
+                                                   HorizontalAlignment="Right" />
+                                    </StackPanel>
+
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+
+                <!-- ── Floating Pill Buttons (pinned to bottom-center) ── -->
+                <StackPanel ZIndex="10"
+                            VerticalAlignment="Bottom"
+                            HorizontalAlignment="Center"
+                            Margin="0,0,0,20"
+                            Orientation="Horizontal"
+                            Spacing="16">
+
+                    <!-- RESUME ALL / START ALL -->
+                    <Button Classes="pill"
+                            Command="{Binding StartDownloadsCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Border Width="32" Height="32" CornerRadius="16" Background="#007BFF">
+                                <TextBlock Text="▶"
+                                           Foreground="White"
+                                           FontSize="12"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center" />
+                            </Border>
+                            <TextBlock Text="START ALL"
+                                       VerticalAlignment="Center"
+                                       FontWeight="SemiBold"
+                                       FontSize="12"
+                                       Foreground="#CBD5E1" />
+                        </StackPanel>
+                    </Button>
+
+                    <!-- STOP ALL -->
+                    <Button Classes="pill"
+                            Command="{Binding StopDownloadsCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Border Width="32" Height="32" CornerRadius="16" Background="#1E293B">
+                                <TextBlock Text="■"
+                                           Foreground="#64748B"
+                                           FontSize="12"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center" />
+                            </Border>
+                            <TextBlock Text="STOP ALL"
+                                       VerticalAlignment="Center"
+                                       FontWeight="SemiBold"
+                                       FontSize="12"
+                                       Foreground="#CBD5E1" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Grid>
+
+        <!-- ╔══════════════════════════════════════════════════════╗
+             ║  ROW 3 — FOOTER (glass)                             ║
+             ╚══════════════════════════════════════════════════════╝ -->
+        <Border Grid.Row="3"
+                Background="#0AFFFFFF"
+                BorderBrush="#14FFFFFF"
+                BorderThickness="0,1,0,0"
+                Padding="24,10">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+
+                <!-- Left: pulsing status dot + processed summary + elapsed -->
+                <StackPanel Grid.Column="0"
+                            Orientation="Horizontal"
+                            VerticalAlignment="Center"
+                            Spacing="16">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Spacing="8">
+                        <Ellipse Width="8" Height="8" Fill="#10B981">
+                            <Ellipse.Styles>
+                                <Style Selector="Ellipse">
+                                    <Style.Animations>
+                                        <Animation Duration="0:0:1.5" IterationCount="INFINITE">
+                                            <KeyFrame Cue="0%">
+                                                <Setter Property="Opacity" Value="1" />
+                                            </KeyFrame>
+                                            <KeyFrame Cue="50%">
+                                                <Setter Property="Opacity" Value="0.2" />
+                                            </KeyFrame>
+                                            <KeyFrame Cue="100%">
+                                                <Setter Property="Opacity" Value="1" />
+                                            </KeyFrame>
+                                        </Animation>
+                                    </Style.Animations>
+                                </Style>
+                            </Ellipse.Styles>
+                        </Ellipse>
+                        <TextBlock Text="{Binding ProcessedSummary}"
+                                   FontSize="12"
+                                   FontWeight="Medium"
+                                   Foreground="#94A3B8" />
+                    </StackPanel>
+
+                    <Border Width="1" Height="16" Background="#18FFFFFF" />
+
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Spacing="6">
+                        <TextBlock Text="⏱" FontSize="12" Foreground="#334155" />
+                        <TextBlock Text="{Binding ElapsedTime}"
+                                   FontSize="12"
+                                   Foreground="#475569" />
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Center: overall progress bar with label -->
+                <StackPanel Grid.Column="1"
+                            Margin="40,0"
+                            VerticalAlignment="Center">
+                    <Grid Margin="0,0,0,5" ColumnDefinitions="*,Auto">
+                        <TextBlock Grid.Column="0"
+                                   Text="OVERALL PROGRESS"
+                                   FontSize="10"
+                                   Foreground="#334155"
+                                   VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="1"
+                                   Text="{Binding OverallProgress, StringFormat={}{0:F0}%}"
+                                   FontSize="10"
+                                   Foreground="#475569" />
+                    </Grid>
+                    <ProgressBar Maximum="100"
+                                 Value="{Binding OverallProgress, Mode=OneWay}"
+                                 Theme="{StaticResource OverallGradientProgress}" />
+                </StackPanel>
+
+                <!-- Right: version label -->
+                <TextBlock Grid.Column="2"
+                           Text="v2.0 · AudioStream"
+                           FontSize="11"
+                           Foreground="#1E3A5F"
+                           VerticalAlignment="Center" />
+            </Grid>
+        </Border>
+
+    </Grid>
+</Window>

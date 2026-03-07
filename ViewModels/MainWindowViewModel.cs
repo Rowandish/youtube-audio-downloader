@@ -2,7 +2,7 @@ using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.Diagnostics;
 using System.IO;
-using Microsoft.Win32;
+using Avalonia.Threading;
 using YoutubeAudioDownloader.Infrastructure;
 using YoutubeAudioDownloader.Models;
 using YoutubeAudioDownloader.Services;
@@ -15,7 +15,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
 
     private readonly YtDlpDownloadService _downloadService = new();
     private readonly Stopwatch _stopwatch = new();
-    private readonly System.Windows.Threading.DispatcherTimer _elapsedTimer;
+    private readonly DispatcherTimer _elapsedTimer;
 
     private CancellationTokenSource? _downloadCts;
     private readonly List<DownloadItem> _activeBatch = [];
@@ -52,14 +52,11 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         Items.CollectionChanged += OnItemsCollectionChanged;
         Errors.CollectionChanged += (_, _) => ClearErrorsCommand.NotifyCanExecuteChanged();
 
-        _elapsedTimer = new System.Windows.Threading.DispatcherTimer(
-            TimeSpan.FromSeconds(1),
-            System.Windows.Threading.DispatcherPriority.Background,
-            (_, _) =>
-            {
-                ElapsedTime = _stopwatch.Elapsed.ToString(@"hh\:mm\:ss");
-            },
-            System.Windows.Application.Current.Dispatcher);
+        _elapsedTimer = new DispatcherTimer(DispatcherPriority.Background)
+        {
+            Interval = TimeSpan.FromSeconds(1)
+        };
+        _elapsedTimer.Tick += (_, _) => ElapsedTime = _stopwatch.Elapsed.ToString(@"hh\:mm\:ss");
     }
 
     public ObservableCollection<DownloadItem> Items { get; } = [];
@@ -266,17 +263,18 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
 
     private void BrowseOutputDirectory()
     {
-        var dialog = new OpenFolderDialog
+        using var dialog = new System.Windows.Forms.FolderBrowserDialog
         {
-            Title = "Select output folder",
-            InitialDirectory = Directory.Exists(OutputDirectory)
+            Description = "Select output folder",
+            SelectedPath = Directory.Exists(OutputDirectory)
                 ? OutputDirectory
-                : Environment.GetFolderPath(Environment.SpecialFolder.MyMusic)
+                : Environment.GetFolderPath(Environment.SpecialFolder.MyMusic),
+            UseDescriptionForTitle = true
         };
 
-        if (dialog.ShowDialog() == true)
+        if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
         {
-            OutputDirectory = dialog.FolderName;
+            OutputDirectory = dialog.SelectedPath;
         }
     }
 
