@@ -11,6 +11,7 @@ namespace YoutubeAudioDownloader.Services;
 public sealed class YtDlpDownloadService
 {
     private static readonly Regex PercentRegex = new(@"(?<value>\d{1,3}(?:\.\d+)?)%", RegexOptions.Compiled);
+    private readonly Lazy<Task<string?>> _ytDlpVersion = new(GetYtDlpVersionAsync);
 
     public async Task DownloadAudioAsync(
         string url,
@@ -20,6 +21,11 @@ public sealed class YtDlpDownloadService
         IProgress<string>? status,
         CancellationToken cancellationToken)
     {
+        var ytDlpVersion = await _ytDlpVersion.Value.ConfigureAwait(false);
+        status?.Report(string.IsNullOrWhiteSpace(ytDlpVersion)
+            ? "Unable to determine yt-dlp version."
+            : $"Using yt-dlp version {ytDlpVersion}.");
+
         var processStartInfo = BuildProcessStartInfo(url, outputDirectory, quality);
 
         using var process = new Process
@@ -59,7 +65,7 @@ public sealed class YtDlpDownloadService
             throw new InvalidOperationException(
                 string.IsNullOrWhiteSpace(latestError)
                     ? $"yt-dlp exited with code {process.ExitCode}."
-                    : latestError);
+                    : YtDlpErrorMessageFormatter.Format(latestError, ytDlpVersion));
         }
 
         progress.Report(100d);
@@ -78,6 +84,8 @@ public sealed class YtDlpDownloadService
 
         processStartInfo.ArgumentList.Add("--newline");
         processStartInfo.ArgumentList.Add("--no-playlist");
+        processStartInfo.ArgumentList.Add("--extractor-args");
+        processStartInfo.ArgumentList.Add("youtube:player_client=web_embedded,android_vr");
         processStartInfo.ArgumentList.Add("-x");
         processStartInfo.ArgumentList.Add("--audio-format");
         processStartInfo.ArgumentList.Add("mp3");
@@ -89,6 +97,38 @@ public sealed class YtDlpDownloadService
         processStartInfo.ArgumentList.Add(url);
 
         return processStartInfo;
+    }
+
+    private static async Task<string?> GetYtDlpVersionAsync()
+    {
+        var processStartInfo = new ProcessStartInfo
+        {
+            FileName = "yt-dlp",
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        processStartInfo.ArgumentList.Add("--version");
+
+        try
+        {
+            using var process = new Process { StartInfo = processStartInfo };
+
+            if (!process.Start())
+            {
+                return null;
+            }
+
+            var output = await process.StandardOutput.ReadToEndAsync().ConfigureAwait(false);
+            await process.WaitForExitAsync().ConfigureAwait(false);
+
+            return process.ExitCode == 0 ? output.Trim() : null;
+        }
+        catch (Win32Exception)
+        {
+            return null;
+        }
     }
 
     private static async Task ReadLinesAsync(
