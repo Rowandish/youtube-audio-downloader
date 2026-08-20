@@ -214,8 +214,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
 
             if (IsDownloading)
             {
-                newItem.State = DownloadState.Queued;
-                newItem.StatusMessage = "Queued";
+                newItem.Queue();
                 _activeBatch.Add(newItem);
                 TotalCount++;
                 UpdateOverallProgress();
@@ -312,10 +311,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
 
         foreach (var item in batch)
         {
-            item.Progress = 0d;
-            item.State = DownloadState.Queued;
-            item.StatusMessage = "Queued";
-            item.ErrorMessage = string.Empty;
+            item.Queue();
             _activeBatch.Add(item);
         }
 
@@ -386,18 +382,17 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            item.State = DownloadState.Downloading;
-            item.StatusMessage = "Downloading";
+            item.Start();
 
             var progress = new Progress<double>(value =>
             {
-                item.Progress = value;
+                item.ReportProgress(value);
                 UpdateOverallProgress();
             });
 
             var status = new Progress<string>(message =>
             {
-                item.StatusMessage = message;
+                item.ReportStatus(message);
             });
 
             await _downloadService.DownloadAudioAsync(
@@ -408,20 +403,15 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
                 status,
                 cancellationToken);
 
-            item.Progress = 100d;
-            item.State = DownloadState.Completed;
-            item.StatusMessage = "Completed";
+            item.Complete();
         }
         catch (OperationCanceledException)
         {
-            item.State = DownloadState.Stopped;
-            item.StatusMessage = "Stopped";
+            item.Stop();
         }
         catch (Exception ex)
         {
-            item.State = DownloadState.Failed;
-            item.StatusMessage = "Error";
-            item.ErrorMessage = ex.Message;
+            item.Fail(ex.Message);
             Errors.Add($"{DateTime.Now:HH:mm:ss} | {item.Url} | {ex.Message}");
         }
         finally
@@ -435,9 +425,8 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     {
         foreach (var item in _activeBatch.Where(item => item.State == DownloadState.Queued))
         {
-            item.State = DownloadState.Stopped;
-            item.StatusMessage = "Stopped";
-            item.Progress = 0d;
+            item.Stop();
+            item.ReportProgress(0d);
             ProcessedCount++;
         }
 

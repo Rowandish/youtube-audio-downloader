@@ -19,7 +19,7 @@ public sealed class DownloadItem : ObservableObject
     public double Progress
     {
         get => _progress;
-        set
+        private set
         {
             if (SetProperty(ref _progress, Math.Clamp(value, 0d, 100d)))
             {
@@ -31,7 +31,7 @@ public sealed class DownloadItem : ObservableObject
     public DownloadState State
     {
         get => _state;
-        set
+        private set
         {
             if (SetProperty(ref _state, value))
             {
@@ -53,12 +53,50 @@ public sealed class DownloadItem : ObservableObject
     public string StatusMessage
     {
         get => _statusMessage;
-        set => SetProperty(ref _statusMessage, value);
+        private set => SetProperty(ref _statusMessage, value);
     }
 
     public string ErrorMessage
     {
         get => _errorMessage;
-        set => SetProperty(ref _errorMessage, value);
+        private set => SetProperty(ref _errorMessage, value);
+    }
+
+    public void Queue()
+    {
+        Progress = 0d;
+        State = DownloadState.Queued;
+        StatusMessage = "Queued";
+        ErrorMessage = string.Empty;
+    }
+
+    public void Start()
+    {
+        State = DownloadState.Downloading;
+        StatusMessage = "Downloading";
+    }
+
+    public void ReportProgress(double value) => Progress = value;
+
+    public void ReportStatus(string message) => StatusMessage = message;
+
+    public void Complete()
+    {
+        Progress = 100d;
+        State = DownloadState.Completed;
+        StatusMessage = "Completed";
+    }
+
+    public void Fail(string error)
+    {
+        State = DownloadState.Failed;
+        StatusMessage = "Error";
+        ErrorMessage = error;
+    }
+
+    public void Stop()
+    {
+        State = DownloadState.Stopped;
+        StatusMessage = "Stopped";
     }
 }
