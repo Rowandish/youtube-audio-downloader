@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using Avalonia.Threading;
@@ -11,28 +12,19 @@ namespace YoutubeAudioDownloader.ViewModels;
 
 public sealed class MainWindowViewModel : ObservableObject, IDisposable
 {
-    private const int MaxParallelDownloads = 3;
-
-    private readonly YtDlpDownloadService _downloadService = new();
+    private readonly DownloadBatch _batch;
     private readonly Stopwatch _stopwatch = new();
     private readonly DispatcherTimer _elapsedTimer;
 
-    private CancellationTokenSource? _downloadCts;
-    private readonly List<DownloadItem> _activeBatch = [];
-
     private string _urlInput = string.Empty;
-    private string _outputDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyMusic);
     private AudioQualityOption _selectedQuality;
     private DownloadItem? _selectedItem;
-    private int _processedCount;
-    private int _totalCount;
-    private double _overallProgress;
     private string _elapsedTime = "00:00:00";
-    private string _statusMessage = "Ready";
-    private bool _isDownloading;
 
-    public MainWindowViewModel()
+    public MainWindowViewModel(DownloadBatch batch)
     {
+        _batch = batch;
+
         QualityOptions =
         [
             new AudioQualityOption(AudioQuality.High, "High"),
@@ -41,27 +33,29 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         ];
 
         _selectedQuality = QualityOptions[2];
+        _batch.SelectedQuality = _selectedQuality.Value;
 
         AddUrlCommand = new RelayCommand(AddUrls, () => !string.IsNullOrWhiteSpace(UrlInput));
         RemoveSelectedCommand = new RelayCommand(RemoveSelectedItem, () => IsIdle && SelectedItem is not null);
         BrowseOutputDirectoryCommand = new RelayCommand(BrowseOutputDirectory, () => IsIdle);
         StartDownloadsCommand = new AsyncRelayCommand(StartDownloadsAsync, CanStartDownloads);
-        StopDownloadsCommand = new RelayCommand(StopDownloads, () => IsDownloading);
-        ClearErrorsCommand = new RelayCommand(ClearErrors, () => Errors.Count > 0);
+        StopDownloadsCommand = new RelayCommand(_batch.Stop, () => IsDownloading);
+        ClearErrorsCommand = new RelayCommand(_batch.ClearErrors, () => Errors.Count > 0);
 
-        Items.CollectionChanged += OnItemsCollectionChanged;
-        Errors.CollectionChanged += (_, _) => ClearErrorsCommand.NotifyCanExecuteChanged();
+        ((INotifyCollectionChanged)Items).CollectionChanged += OnItemsCollectionChanged;
+        ((INotifyCollectionChanged)Errors).CollectionChanged += OnErrorsCollectionChanged;
+        _batch.PropertyChanged += OnBatchPropertyChanged;
 
         _elapsedTimer = new DispatcherTimer(DispatcherPriority.Background)
         {
             Interval = TimeSpan.FromSeconds(1)
         };
-        _elapsedTimer.Tick += (_, _) => ElapsedTime = _stopwatch.Elapsed.ToString(@"hh\:mm\:ss");
+        _elapsedTimer.Tick += OnElapsedTimerTick;
     }
 
-    public ObservableCollection<DownloadItem> Items { get; } = [];
+    public ReadOnlyObservableCollection<DownloadItem> Items => _batch.Items;
 
-    public ObservableCollection<string> Errors { get; } = [];
+    public ReadOnlyObservableCollection<string> Errors => _batch.Errors;
 
     public IReadOnlyList<AudioQualityOption> QualityOptions { get; }
 
@@ -91,14 +85,20 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
 
     public string OutputDirectory
     {
-        get => _outputDirectory;
-        set => SetProperty(ref _outputDirectory, value);
+        get => _batch.OutputDirectory;
+        set => _batch.OutputDirectory = value;
     }
 
     public AudioQualityOption SelectedQuality
     {
         get => _selectedQuality;
-        set => SetProperty(ref _selectedQuality, value);
+        set
+        {
+            if (SetProperty(ref _selectedQuality, value))
+            {
+                _batch.SelectedQuality = value.Value;
+            }
+        }
     }
 
     public DownloadItem? SelectedItem
@@ -113,37 +113,13 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         }
     }
 
-    public int ProcessedCount
-    {
-        get => _processedCount;
-        private set
-        {
-            if (SetProperty(ref _processedCount, value))
-            {
-                OnPropertyChanged(nameof(ProcessedSummary));
-            }
-        }
-    }
+    public int ProcessedCount => _batch.ProcessedCount;
 
-    public int TotalCount
-    {
-        get => _totalCount;
-        private set
-        {
-            if (SetProperty(ref _totalCount, value))
-            {
-                OnPropertyChanged(nameof(ProcessedSummary));
-            }
-        }
-    }
+    public int TotalCount => _batch.TotalCount;
 
     public string ProcessedSummary => $"{ProcessedCount}/{TotalCount} processed";
 
-    public double OverallProgress
-    {
-        get => _overallProgress;
-        private set => SetProperty(ref _overallProgress, value);
-    }
+    public double OverallProgress => _batch.OverallProgress;
 
     public string ElapsedTime
     {
@@ -151,32 +127,20 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         private set => SetProperty(ref _elapsedTime, value);
     }
 
-    public string StatusMessage
-    {
-        get => _statusMessage;
-        private set => SetProperty(ref _statusMessage, value);
-    }
+    public string StatusMessage => _batch.StatusMessage;
 
-    public bool IsDownloading
-    {
-        get => _isDownloading;
-        private set
-        {
-            if (SetProperty(ref _isDownloading, value))
-            {
-                OnPropertyChanged(nameof(IsIdle));
-                NotifyCommandStates();
-            }
-        }
-    }
+    public bool IsDownloading => _batch.IsDownloading;
 
     public bool IsIdle => !IsDownloading;
 
     public void Dispose()
     {
         _elapsedTimer.Stop();
-        _downloadCts?.Cancel();
-        _downloadCts?.Dispose();
+        _elapsedTimer.Tick -= OnElapsedTimerTick;
+        ((INotifyCollectionChanged)Items).CollectionChanged -= OnItemsCollectionChanged;
+        ((INotifyCollectionChanged)Errors).CollectionChanged -= OnErrorsCollectionChanged;
+        _batch.PropertyChanged -= OnBatchPropertyChanged;
+        _batch.Dispose();
     }
 
     private void OnItemsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
@@ -184,68 +148,51 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         NotifyCommandStates();
     }
 
+    private void OnErrorsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        ClearErrorsCommand.NotifyCanExecuteChanged();
+    }
+
+    private void OnBatchPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        OnPropertyChanged(e.PropertyName);
+
+        if (e.PropertyName is nameof(DownloadBatch.ProcessedCount) or nameof(DownloadBatch.TotalCount))
+        {
+            OnPropertyChanged(nameof(ProcessedSummary));
+        }
+
+        if (e.PropertyName == nameof(DownloadBatch.IsDownloading))
+        {
+            OnPropertyChanged(nameof(IsIdle));
+
+            if (IsDownloading)
+            {
+                _stopwatch.Restart();
+                _elapsedTimer.Start();
+            }
+            else
+            {
+                _elapsedTimer.Stop();
+                _stopwatch.Stop();
+            }
+
+            NotifyCommandStates();
+        }
+    }
+
     private bool CanStartDownloads()
     {
-        return IsIdle && Items.Any(item => item.State is DownloadState.Pending or DownloadState.Queued or DownloadState.Failed or DownloadState.Stopped);
+        return IsIdle && Items.Any(item =>
+            item.State is DownloadState.Pending or DownloadState.Queued or DownloadState.Failed or DownloadState.Stopped);
     }
 
     private void AddUrls()
     {
-        var rawUrls = UrlInput.Split(
-            ['\r', '\n', ';', ',', ' ', '\t'],
-            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-
-        var added = 0;
-
-        foreach (var url in rawUrls.Distinct(StringComparer.OrdinalIgnoreCase))
+        if (_batch.AddUrls(UrlInput) > 0)
         {
-            if (!IsValidYoutubeUrl(url))
-            {
-                Errors.Add($"Invalid URL: {url}");
-                continue;
-            }
-
-            if (Items.Any(item => string.Equals(item.Url, url, StringComparison.OrdinalIgnoreCase)))
-            {
-                continue;
-            }
-
-            var newItem = new DownloadItem(url);
-
-            if (IsDownloading)
-            {
-                newItem.Queue();
-                _activeBatch.Add(newItem);
-                TotalCount++;
-                UpdateOverallProgress();
-            }
-
-            Items.Add(newItem);
-            added++;
-        }
-
-        if (added > 0)
-        {
-            StatusMessage = $"Added {added} URL(s).";
             UrlInput = string.Empty;
         }
-        else
-        {
-            StatusMessage = "No URLs added.";
-        }
-    }
-
-    private static bool IsValidYoutubeUrl(string url)
-    {
-        if (!Uri.TryCreate(url, UriKind.Absolute, out var parsedUri))
-        {
-            return false;
-        }
-
-        var host = parsedUri.Host.ToLowerInvariant();
-
-        return host.Contains("youtube.com", StringComparison.Ordinal) ||
-               host.Contains("youtu.be", StringComparison.Ordinal);
     }
 
     private void RemoveSelectedItem()
@@ -255,9 +202,8 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             return;
         }
 
-        Items.Remove(SelectedItem);
+        _batch.Remove(SelectedItem);
         SelectedItem = null;
-        StatusMessage = "Item removed.";
     }
 
     private void BrowseOutputDirectory()
@@ -277,192 +223,14 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         }
     }
 
-    private async Task StartDownloadsAsync()
+    private Task StartDownloadsAsync()
     {
-        if (string.IsNullOrWhiteSpace(OutputDirectory))
-        {
-            StatusMessage = "Specify an output folder.";
-            return;
-        }
-
-        try
-        {
-            Directory.CreateDirectory(OutputDirectory);
-        }
-        catch (Exception ex)
-        {
-            StatusMessage = "Invalid output folder.";
-            Errors.Add($"Unable to use output folder: {ex.Message}");
-            return;
-        }
-
-        var batch = Items
-            .Where(item => item.State is DownloadState.Pending or DownloadState.Queued or DownloadState.Failed or DownloadState.Stopped)
-            .ToList();
-
-        if (batch.Count == 0)
-        {
-            StatusMessage = "No items available for download.";
-            return;
-        }
-
-        Errors.Clear();
-        _activeBatch.Clear();
-
-        foreach (var item in batch)
-        {
-            item.Queue();
-            _activeBatch.Add(item);
-        }
-
-        ProcessedCount = 0;
-        TotalCount = _activeBatch.Count;
-        OverallProgress = 0d;
-        StatusMessage = "Downloads started.";
-
-        _downloadCts?.Dispose();
-        _downloadCts = new CancellationTokenSource();
-
-        IsDownloading = true;
-        _stopwatch.Restart();
-        _elapsedTimer.Start();
-
-        try
-        {
-            var runningTasks = new List<Task>(MaxParallelDownloads);
-            var cancellationToken = _downloadCts.Token;
-
-            while (true)
-            {
-                while (!cancellationToken.IsCancellationRequested && runningTasks.Count < MaxParallelDownloads)
-                {
-                    var nextItem = _activeBatch.FirstOrDefault(item => item.State == DownloadState.Queued);
-
-                    if (nextItem is null)
-                    {
-                        break;
-                    }
-
-                    runningTasks.Add(DownloadItemAsync(nextItem, cancellationToken));
-                }
-
-                if (runningTasks.Count == 0)
-                {
-                    break;
-                }
-
-                var completedTask = await Task.WhenAny(runningTasks);
-                runningTasks.Remove(completedTask);
-                await completedTask;
-            }
-
-            if (cancellationToken.IsCancellationRequested)
-            {
-                MarkQueuedItemsAsStopped();
-            }
-
-            StatusMessage = cancellationToken.IsCancellationRequested
-                ? "Downloads stopped."
-                : Errors.Count > 0
-                    ? "Completed with errors."
-                    : "Downloads completed.";
-        }
-        finally
-        {
-            _elapsedTimer.Stop();
-            _stopwatch.Stop();
-            IsDownloading = false;
-            UpdateOverallProgress();
-        }
+        return _batch.StartAsync();
     }
 
-    private async Task DownloadItemAsync(DownloadItem item, CancellationToken cancellationToken)
+    private void OnElapsedTimerTick(object? sender, EventArgs e)
     {
-        try
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            item.Start();
-
-            var progress = new Progress<double>(value =>
-            {
-                item.ReportProgress(value);
-                UpdateOverallProgress();
-            });
-
-            var status = new Progress<string>(message =>
-            {
-                item.ReportStatus(message);
-            });
-
-            await _downloadService.DownloadAudioAsync(
-                item.Url,
-                OutputDirectory,
-                SelectedQuality.Value,
-                progress,
-                status,
-                cancellationToken);
-
-            item.Complete();
-        }
-        catch (OperationCanceledException)
-        {
-            item.Stop();
-        }
-        catch (Exception ex)
-        {
-            item.Fail(ex.Message);
-            Errors.Add($"{DateTime.Now:HH:mm:ss} | {item.Url} | {ex.Message}");
-        }
-        finally
-        {
-            ProcessedCount++;
-            UpdateOverallProgress();
-        }
-    }
-
-    private void MarkQueuedItemsAsStopped()
-    {
-        foreach (var item in _activeBatch.Where(item => item.State == DownloadState.Queued))
-        {
-            item.Stop();
-            item.ReportProgress(0d);
-            ProcessedCount++;
-        }
-
-        UpdateOverallProgress();
-    }
-
-    private void StopDownloads()
-    {
-        if (!IsDownloading)
-        {
-            return;
-        }
-
-        StatusMessage = "Stopping downloads...";
-        _downloadCts?.Cancel();
-    }
-
-    private void ClearErrors()
-    {
-        Errors.Clear();
-    }
-
-    private void UpdateOverallProgress()
-    {
-        if (_activeBatch.Count == 0)
-        {
-            OverallProgress = 0d;
-            return;
-        }
-
-        var totalProgress = _activeBatch.Sum(item =>
-            item.State is DownloadState.Completed or DownloadState.Failed or DownloadState.Stopped
-                ? 100d
-                : item.Progress);
-
-        OverallProgress = totalProgress / _activeBatch.Count;
+        ElapsedTime = _stopwatch.Elapsed.ToString(@"hh\:mm\:ss");
     }
 
     private void NotifyCommandStates()
